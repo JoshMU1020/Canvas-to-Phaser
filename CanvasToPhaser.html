@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Smooth Game Loop with Key Controls</title>
+</head>
+<body>
+    <canvas id="gameCanvas" width="400" height="400"></canvas>
+	<!-- //**** Define a score Element and give an id of score, intial value of 0 -->
+
+
+
+    <script>
+        const canvas = document.getElementById("gameCanvas");
+        const ctx = canvas.getContext("2d");
+		
+		//**** Save the define scoring Element in a variable,similar to how you get canvas ****//
+		
+        let playerX = 50;
+        let playerY = canvas.height - 50;
+        const playerSize = 30;
+
+        let items = [];
+        const itemSize = 20;
+        const maxItems = 5;
+
+        let score = 0;
+
+        let lastTimestamp = 0;
+        let deltaTime = 0;
+
+        let movingLeft = false;
+        let movingRight = false;
+
+        function gameLoop(timestamp) {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Calculate delta time (time since the last frame)
+            if (lastTimestamp !== 0) {
+                deltaTime = (timestamp - lastTimestamp) / 1000; // Convert to seconds
+            }
+            lastTimestamp = timestamp;
+
+            // Move the player smoothly based on delta time
+            if (movingLeft) {
+                playerX -= 200 * deltaTime; // Adjust movement speed using delta time
+            } else if (movingRight) {
+                playerX += 200 * deltaTime; // Adjust movement speed using delta time
+            }
+
+            // Ensure the player stays within the canvas
+            if (playerX < 0) {
+                playerX = 0;
+            } else if (playerX > canvas.width - playerSize) {
+                playerX = canvas.width - playerSize;
+            }
+
+            // Draw the player
+            ctx.fillStyle = "blue";
+            ctx.fillRect(playerX, playerY, playerSize, playerSize);
+
+            // Create an array to hold indices of items to be removed
+            let itemsToRemove = [];
+
+            // Move and draw items
+            for (let i = 0; i < items.length; i++) {
+                items[i].y += 200 * deltaTime; // Adjust item speed using delta time
+                ctx.fillStyle = "green";
+                ctx.fillRect(items[i].x, items[i].y, itemSize, itemSize);
+
+                // Check for collision with player
+                if (
+                    playerX < items[i].x + itemSize &&
+                    playerX + playerSize > items[i].x &&
+                    playerY < items[i].y + itemSize &&
+                    playerY + playerSize > items[i].y
+                ) {
+                    itemsToRemove.push(i); // Mark item for removal
+                  //**** give 10 points to the score
+				  //**** publish the score in the score Element's innerHTML
+                }
+
+                // Check if the item is still within the canvas
+                if (items[i].y + itemSize < canvas.height) {
+                    // Keep the item
+                } else {
+                    itemsToRemove.push(i); // Mark item for removal
+                }
+            }
+
+            // Remove items that are marked for removal
+            for (let i = itemsToRemove.length - 1; i >= 0; i--) {
+                items.splice(itemsToRemove[i], 1);
+            }
+
+            // Generate new items
+            if (items.length < maxItems && Math.random() < 0.02) {
+                const itemX = Math.random() * (canvas.width - itemSize);
+                items.push({ x: itemX, y: 0 });
+            }
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        // Handle player movement
+        document.addEventListener("keydown", function(event) {
+            if (event.key === "ArrowLeft") {
+                movingLeft = true;
+            } else if (event.key === "ArrowRight") {
+                movingRight = true;
+            }
+        });
+
+        document.addEventListener("keyup", function(event) {
+            if (event.key === "ArrowLeft") {
+                movingLeft = false;
+            } else if (event.key === "ArrowRight") {
+                movingRight = false;
+            }
+        });
+
+        gameLoop(0); // Start the game loop with an initial timestamp
+    </script>
+</body>
+</html>
