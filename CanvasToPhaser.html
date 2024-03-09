@@ -2,123 +2,191 @@
 <html>
 <head>
     <title>Smooth Game Loop with Key Controls</title>
+    <script src="https://cdn.jsdelivr.net/npm/phaser@3.55.2/dist/phaser.js"></script>
 </head>
 <body>
-    <canvas id="gameCanvas" width="400" height="400"></canvas>
-	<!-- //**** Define a score Element and give an id of score, intial value of 0 -->
-
-
-
     <script>
-        const canvas = document.getElementById("gameCanvas");
-        const ctx = canvas.getContext("2d");
-		
-		//**** Save the define scoring Element in a variable,similar to how you get canvas ****//
-		
-        let playerX = 50;
-        let playerY = canvas.height - 50;
-        const playerSize = 30;
-
-        let items = [];
-        const itemSize = 20;
-        const maxItems = 5;
-
-        let score = 0;
-
-        let lastTimestamp = 0;
-        let deltaTime = 0;
-
-        let movingLeft = false;
-        let movingRight = false;
-
-        function gameLoop(timestamp) {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-            // Calculate delta time (time since the last frame)
-            if (lastTimestamp !== 0) {
-                deltaTime = (timestamp - lastTimestamp) / 1000; // Convert to seconds
+        class StarterScene extends Phaser.Scene {
+            constructor() {
+                super({ key: 'StarterScene' });
             }
-            lastTimestamp = timestamp;
-
-            // Move the player smoothly based on delta time
-            if (movingLeft) {
-                playerX -= 200 * deltaTime; // Adjust movement speed using delta time
-            } else if (movingRight) {
-                playerX += 200 * deltaTime; // Adjust movement speed using delta time
+        
+            preload() {
+                // Preload assets for start scene
+                this.load.image('startButton', 'assets/crab.png');
             }
-
-            // Ensure the player stays within the canvas
-            if (playerX < 0) {
-                playerX = 0;
-            } else if (playerX > canvas.width - playerSize) {
-                playerX = canvas.width - playerSize;
+        
+            create() {
+                // Set background color to light blue
+                this.cameras.main.setBackgroundColor('#add8e6');
+        
+                // Add a start button
+                const startButton = this.add.image(config.width / 2, config.height / 2, 'startButton').setInteractive();
+                startButton.on('pointerup', () => {
+                    // Switch to the main game scene when the button is clicked
+                    this.scene.start('MainGameScene');
+                });
             }
-
-            // Draw the player
-            ctx.fillStyle = "blue";
-            ctx.fillRect(playerX, playerY, playerSize, playerSize);
-
-            // Create an array to hold indices of items to be removed
-            let itemsToRemove = [];
-
-            // Move and draw items
-            for (let i = 0; i < items.length; i++) {
-                items[i].y += 200 * deltaTime; // Adjust item speed using delta time
-                ctx.fillStyle = "green";
-                ctx.fillRect(items[i].x, items[i].y, itemSize, itemSize);
-
-                // Check for collision with player
-                if (
-                    playerX < items[i].x + itemSize &&
-                    playerX + playerSize > items[i].x &&
-                    playerY < items[i].y + itemSize &&
-                    playerY + playerSize > items[i].y
-                ) {
-                    itemsToRemove.push(i); // Mark item for removal
-                  //**** give 10 points to the score
-				  //**** publish the score in the score Element's innerHTML
-                }
-
-                // Check if the item is still within the canvas
-                if (items[i].y + itemSize < canvas.height) {
-                    // Keep the item
-                } else {
-                    itemsToRemove.push(i); // Mark item for removal
-                }
-            }
-
-            // Remove items that are marked for removal
-            for (let i = itemsToRemove.length - 1; i >= 0; i--) {
-                items.splice(itemsToRemove[i], 1);
-            }
-
-            // Generate new items
-            if (items.length < maxItems && Math.random() < 0.02) {
-                const itemX = Math.random() * (canvas.width - itemSize);
-                items.push({ x: itemX, y: 0 });
-            }
-
-            requestAnimationFrame(gameLoop);
         }
 
-        // Handle player movement
-        document.addEventListener("keydown", function(event) {
-            if (event.key === "ArrowLeft") {
-                movingLeft = true;
-            } else if (event.key === "ArrowRight") {
-                movingRight = true;
-            }
-        });
+        let player;
+        let cursors;
+        let items;
+        let score = 0;
+        let scoreText;
 
-        document.addEventListener("keyup", function(event) {
-            if (event.key === "ArrowLeft") {
-                movingLeft = false;
-            } else if (event.key === "ArrowRight") {
-                movingRight = false;
+        class MainGameScene extends Phaser.Scene {
+            constructor() {
+                super({ key: 'MainGameScene' });
             }
-        });
 
-        gameLoop(0); // Start the game loop with an initial timestamp
+            preload() {
+                this.load.image('player', 'assets/crab.webp');
+                this.load.image('item', 'assets/shrimp.png');
+            }
+
+            create() {
+                // Set background color to light blue
+                this.cameras.main.setBackgroundColor('#add8e6');
+                player = this.physics.add.sprite(50, config.height - 50, 'player').setScale(0.5);
+                player.setGravityY(0); // Disable gravity for player
+                cursors = this.input.keyboard.createCursorKeys();
+                items = this.physics.add.group();
+            
+                scoreText = this.add.text(16, 16, 'Score: 0', { fontSize: '32px', fill: '#000' });
+            
+                this.physics.add.collider(player, items, this.collectItem, null, this);
+            
+                this.time.addEvent({
+                    delay: 2000,
+                    callback: this.addNewItem,
+                    callbackScope: this,
+                    loop: true
+                });
+            }
+            
+            update() {
+                // Handles player movement
+                if (cursors.left.isDown && player.x > 50) {
+                    player.setVelocityX(-200);
+                } else if (cursors.right.isDown && player.x < config.width - player.displayWidth / 2) {
+                    player.setVelocityX(200);
+                } else {
+                    player.setVelocityX(0);
+                }
+            }
+
+            addNewItem() {
+                const itemX = Phaser.Math.Between(0, config.width - 20);
+                const item = items.create(itemX, 0, 'item').setScale(0.5);
+                item.setVelocityY(100);
+            }
+
+            collectItem(player, item) {
+                item.destroy();
+                score += 10;
+                scoreText.setText('Score: ' + score);
+                player.body.setVelocityY(0); // Player's velocity should stay at zero for y axis
+                if (score >= 100){
+                    this.scene.start('HardGameScene');
+                }
+            }
+        }
+
+        class HardGameScene extends Phaser.Scene {
+            constructor() {
+                super({ key: 'HardGameScene' });
+            }
+        
+            preload() {
+                // Preload assets for harder game scene
+                this.load.image('player', 'assets/crab.webp');
+                this.load.image('regularItem', 'assets/shrimp.png');
+                this.load.image('infectedItem', 'assets/infectedShrimp.png');
+            }
+        
+            create() {
+                // Set background color to a different color
+                this.cameras.main.setBackgroundColor('#ff0000');
+        
+                // Initialize player, items, and score
+                player = this.physics.add.sprite(50, config.height - 50, 'player').setScale(0.5);
+                player.setGravityY(0); // Disable gravity for player
+                cursors = this.input.keyboard.createCursorKeys();
+                items = this.physics.add.group();
+                score = 100; // Make sure the player starts hard mode with 100 points
+                scoreText = this.add.text(16, 16, 'Score: ' + score, { fontSize: '32px', fill: '#000' });
+        
+                // Set up item generation
+                this.time.addEvent({
+                    delay: 2000,
+                    callback: this.addNewItem,
+                    callbackScope: this,
+                    loop: true
+                });
+        
+                // Set up collision detection
+                this.physics.add.collider(player, items, this.collectItem, null, this);
+            }
+        
+            update() {
+                // Handles player movement
+                if (cursors.left.isDown && player.x > 0) {
+                    player.setVelocityX(-200);
+                } else if (cursors.right.isDown && player.x < config.width - player.displayWidth / 2) {
+                    player.setVelocityX(200);
+                } else {
+                    player.setVelocityX(0);
+                }
+        
+                // Check if the score drops below zero
+                if (score <= 0) {
+                    score = 0;
+                    player.destroy(); // Remove the player from the game if score drops below zero
+
+                }
+            }
+        
+            addNewItem() {
+                // Spawn new items (regular or infected shrimp)
+                const itemX = Phaser.Math.Between(0, config.width - 20);
+                const itemType = Math.random() < 0.6 ? 'regularItem' : 'infectedItem'; // 60% chance for regular shrimp, 40% chance for infected shrimp
+                const item = items.create(itemX, 0, itemType).setScale(0.5);
+                item.setVelocityY(150);
+            }
+        
+            collectItem(player, item) {
+                // Handle item collection
+                if (item.texture.key === 'regularItem') {
+                    score += 10; // Add points for collecting regular shrimp
+                } else if (item.texture.key === 'infectedItem') {
+                    score -= 50; // Minus points for collecting infected shrimp
+                }
+        
+                scoreText.setText('Score: ' + score);
+                player.body.setVelocityY(0); // Player's velocity should stay at zero for y axis
+                item.destroy();
+            }
+        }
+        
+
+        // Config of the game
+        const config = {
+            type: Phaser.AUTO,
+            width: 400,
+            height: 400,
+            physics: {
+                default: 'arcade',
+                arcade: {
+                    gravity: { y: 0 },
+                    debug: false
+                }
+            },
+            scene: [StarterScene, MainGameScene, HardGameScene]
+        };
+
+        const game = new Phaser.Game(config);
+                
     </script>
 </body>
 </html>
